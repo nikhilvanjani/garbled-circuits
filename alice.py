@@ -19,7 +19,8 @@ def generate_garbled_circuit():
 def generate_alice_keys():
 	os.makedirs("./files/bob", exist_ok=True)
 
-	alice_input = 1
+	# alice_input = 1
+	alice_input = int(input("Enter Alice's input: "))
 	alice_bits = bit_decomposition(alice_input)
 
 	with open("./files/alice/x_keys.pkl", "rb") as file:

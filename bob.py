@@ -5,17 +5,22 @@ from alice_and_bob import *
 import os
 import pickle
 
-bob_input = 2
-bob_bits = bit_decomposition(bob_input)
-bits_bool = [True, True]
-if bob_bits[0] == 0:
-	bits_bool[0] = False
-if bob_bits[1] == 0:
-	bits_bool[1] = False
+
 
 def generate_bob_ot1():
 	os.makedirs("./files/alice", exist_ok=True)
 	os.makedirs("./files/bob", exist_ok=True)
+
+	# bob_input = 2
+	bob_input = int(input("Enter Bob's input: "))
+	bob_bits = bit_decomposition(bob_input)
+	bits_bool = [True, True]
+	if bob_bits[0] == 0:
+		bits_bool[0] = False
+	if bob_bits[1] == 0:
+		bits_bool[1] = False
+	with open("./files/bob/bob_input.pkl", "wb") as file:
+		pickle.dump(bits_bool, file)
 
 	bob_all_pk = {}
 	bob_all_sk = {}
@@ -39,6 +44,8 @@ def generate_bob_ot2():
 		alice_all_ct = pickle.load(file)
 	with open("./files/bob/bob_all_sk.pkl", "rb") as file:
 		bob_all_sk = pickle.load(file)
+	with open("./files/bob/bob_input.pkl", "rb") as file:
+		bits_bool = pickle.load(file)
 
 	bob_keys = {}
 	count_per_bit = [2, 1]
