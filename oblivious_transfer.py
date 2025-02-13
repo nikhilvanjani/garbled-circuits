@@ -24,9 +24,10 @@ def alice_ot1(b_0: PublicKey, b_1: PublicKey, msg0: bytes, msg1: bytes) -> (Ciph
 
 def bob_ot2(bit: bool, bob_sk: PrivateKey, alice_ct0: CipherText, alice_ct1: CipherText) -> bytes:
 	if bit:
-		return Elgamal.decrypt(alice_ct1, bob_sk)
+		return bytes(Elgamal.decrypt(alice_ct1, bob_sk))
 	else:
-		return Elgamal.decrypt(alice_ct0, bob_sk)
+		return bytes(Elgamal.decrypt(alice_ct0, bob_sk))
+
 
 def test_elgamal():
 	pk, sk = Elgamal.newkeys(128)
@@ -59,5 +60,6 @@ def test_ot():
 				print("Oblivious Transfer: Correctness with bob_bit = {}: FAILED, expected message: {}, found: {}".format(bob_bit, msg0, msg))
 		print("Oblivious Transfer: Correctness with bob_bit = {}: PASSED".format(bob_bit))
 
-# test_elgamal()
-test_ot()
+if __name__ == '__main__':
+	# test_elgamal()
+	test_ot()
