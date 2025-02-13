@@ -68,7 +68,7 @@ def generate_output():
 		print("Alice's value < Bob's value")
 
 def unknown_command():
-    print("Unknown command. Try 'greet' or 'farewell'.")
+    print("Unknown command. Try 'bob_ot1' or 'bob_ot2' or 'evaluate'.")
 
 # Command mapping
 commands = {

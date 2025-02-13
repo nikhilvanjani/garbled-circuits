@@ -53,7 +53,7 @@ def generate_alice_ot1():
 		pickle.dump(alice_all_ct, file)
 
 def unknown_command():
-    print("Unknown command. Try 'greet' or 'farewell'.")
+    print("Unknown command. Try 'garble' or 'alice_keys' or 'alice_ot1'.")
 
 # Command mapping
 commands = {
