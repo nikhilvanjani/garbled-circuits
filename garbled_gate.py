@@ -1,42 +1,45 @@
+############################################################
+#### Description:
+# Our implementation of Garbled Gate. 
+# Follows Section 2.1 of https://github.com/0xPARC/0xparc-intro-book/releases/download/v1.1.1/easy.pdf .
+
+# Author: Nikhil Vanjani
+############################################################
+
 from Crypto.Cipher import Salsa20
 from Crypto.Hash import SHA256
-# from elgamal.elgamal import Elgamal, PublicKey, PrivateKey, CipherText
 import os
 
-# class truth_table:
-# 	def __init__(self):
-# 		self.val00 = None
-# 		self.val01 = None
-# 		self.val10 = None
-# 		self.val11 = None
-
+# Computes SHA256(P_left || P_right)
 def hash_2_vals(P_left, P_right):
-	# print("hash_2_vals")
-	# print("P_left: {}".format(P_left))
-	# print("P_right: {}".format(P_right))
 	P_concatenated = P_left + P_right
 	h = SHA256.new(P_concatenated)
 	hash_val = h.digest()
 	return hash_val
 
 class garbled_gate:
+	# Garbled table is stored as a dict
 	def __init__(self):
 		self.table = {}
 
-	def insert(self, P_left, P_right, value):
+	# Inserts Enc(P_right, Enc(P_left, value)) at key = SHA256(P_left || P_right).
+	# ASSUMPTION: value is a bytes object
+	def insert(self, P_left: bytes, P_right: bytes, value: bytes):
 		hash_val = hash_2_vals(P_left, P_right)
 
 		cipher_left = Salsa20.new(P_left)
 		nonce_left = cipher_left.nonce
 		cipher_right = Salsa20.new(P_right)
 		nonce_right = cipher_right.nonce
-		# ct_left = cipher_left.encrypt(value.to_bytes(length=2, byteorder='big')) # length: number of bytes to represent the integer
-		ct_left = cipher_left.encrypt(value) # length: number of bytes to represent the integer
+		ct_left = cipher_left.encrypt(value)
 		ct_right = cipher_right.encrypt(ct_left)
 		ct = nonce_left + nonce_right + ct_right
 
 		self.table[hash_val] = ct
-	def lookup(self, P_left, P_right):
+
+	# Looks up the value at key = SHA256(P_left || P_right) and decrypts it using keys P_left and P_right.
+	# Returns a bytes object
+	def lookup(self, P_left: bytes, P_right: bytes) -> bytes:
 		hash_val = hash_2_vals(P_left, P_right)
 
 		ct = self.table[hash_val]
@@ -47,9 +50,12 @@ class garbled_gate:
 		ct_left = cipher_right.decrypt(ct_right)
 		cipher_left = Salsa20.new(P_left, nonce_left)
 		value = cipher_left.decrypt(ct_left)
-		# return int.from_bytes(value, byteorder='big')
 		return value
 
+# Computes the garbled gate corresponding to the gate_truth_table. 
+# Assumes the gate has 'left' and 'right' input wires and an 'out' output wire.
+# For each of the three wires, it takes two keys as input, one each corresponding to bits 0 and 1 on that wire.
+# ASSUMPTION: The values in the dict gate_truth_table are bytes object.
 def garble(P_left_0, P_left_1, P_right_0, P_right_1, P_out_0, P_out_1, gate_truth_table: dict) -> garbled_gate:
 	garbling = garbled_gate()
 	garbling.insert(P_left_0, P_right_0, gate_truth_table[0][0])
@@ -58,8 +64,8 @@ def garble(P_left_0, P_left_1, P_right_0, P_right_1, P_out_0, P_out_1, gate_trut
 	garbling.insert(P_left_1, P_right_1, gate_truth_table[1][1])
 	return garbling
 
-# returns a bytes object
-def evaluate(garbling: garbled_gate, P_left, P_right):
+# Evaluates a garbled gate.
+def evaluate(garbling: garbled_gate, P_left, P_right) -> bytes:
 	return garbling.lookup(P_left, P_right)
 
 val0 = 0
@@ -67,6 +73,11 @@ val1 = 1
 zero_bytes = val0.to_bytes(length=2, byteorder='big')
 one_bytes = val1.to_bytes(length=2, byteorder='big')
 
+# Truth table for AND gate.
+# plain = True indicates that this is a garbled gate in the output layer of the garbled circuit.
+# plain = False indicates that this is an intemediate garbled gate in the garbled circuit.
+# If plain = True, P_0 and P_1 are ignored.
+# If plain = False, the truth table outputs are the keys P_0 / P_1 corresponding to the output bit 0 / 1.
 def get_truth_table_and(plain: bool, P_0 = None, P_1 = None):
 	truth_table = {}
 	truth_table[0] = {}
@@ -83,6 +94,7 @@ def get_truth_table_and(plain: bool, P_0 = None, P_1 = None):
 		truth_table[1][1] = P_1
 	return truth_table
 
+# Truth table for OR gate.
 def get_truth_table_or(plain: bool, P_0 = None, P_1 = None):
 	truth_table = {}
 	truth_table[0] = {}
@@ -99,6 +111,7 @@ def get_truth_table_or(plain: bool, P_0 = None, P_1 = None):
 		truth_table[1][1] = P_1
 	return truth_table
 
+# Truth table for (x >= y) gate.
 def get_truth_table_geq(plain: bool, P_0 = None, P_1 = None):
 	truth_table = {}
 	truth_table[0] = {}
@@ -115,6 +128,7 @@ def get_truth_table_geq(plain: bool, P_0 = None, P_1 = None):
 		truth_table[1][1] = P_1
 	return truth_table
 
+# Truth table for (x > y) gate.
 def get_truth_table_gt(plain: bool, P_0 = None, P_1 = None):
 	truth_table = {}
 	truth_table[0] = {}
@@ -131,6 +145,7 @@ def get_truth_table_gt(plain: bool, P_0 = None, P_1 = None):
 		truth_table[1][1] = P_0
 	return truth_table
 
+# Truth table for (x == y) gate.
 def get_truth_table_eq(plain: bool, P_0 = None, P_1 = None):
 	truth_table = {}
 	truth_table[0] = {}

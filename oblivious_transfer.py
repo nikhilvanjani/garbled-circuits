@@ -1,9 +1,24 @@
+############################################################
+#### Description:
+# Our implementation of Oblivious Transfer. 
+# Follows Section 2.2 of https://github.com/0xPARC/0xparc-intro-book/releases/download/v1.1.1/easy.pdf .
+
+# Author: Nikhil Vanjani
+############################################################
+
 from elgamal.elgamal import Elgamal, PublicKey, PrivateKey, CipherText
 from copy import deepcopy
 
 
+# This is a toy OT protocol and may not be fully secure.
+# For OT protocol's security, it is essential that Bob does not know the secret key sk2 corresponding to the fake public key pk2.
+# In Elgamal encryption, pk = g^{sk}. 
+# To ensure full security, we need that ARITHMETIC_PROGRESSION_DIFF = random value, for example SHA(1). 
+# This helps formally argue that pk2 is a random value and thus finding sk2 is no easier than breaking the discrete log assumption.
 ARITHMETIC_PROGRESSION_DIFF = 1
 
+# Creates a valid (pk, sk) pair. Also creates a fake public key pk2.
+# Returns ((b_0, b_1), sk), where (b_bit, sk) are the valid pair and (b_0, b_1) follow an arithmetic progression
 def bob_ot1(bit: bool) -> ((PublicKey, PublicKey), PrivateKey):
 	pk, sk = Elgamal.newkeys(128)
 	pk2 = deepcopy(pk)
@@ -14,6 +29,7 @@ def bob_ot1(bit: bool) -> ((PublicKey, PublicKey), PrivateKey):
 		pk2.y += ARITHMETIC_PROGRESSION_DIFF
 		return ((pk, pk2), sk)
 
+# Alice encrypts msg0 under public key b_0 and msg1 under b_1.
 def alice_ot1(b_0: PublicKey, b_1: PublicKey, msg0: bytes, msg1: bytes) -> (CipherText, CipherText):
 	if b_1.y != b_0.y + ARITHMETIC_PROGRESSION_DIFF:
 		raise ValueError('alice_ot1: bob_keys must be an arithmetic progression with diff = {}'.format(ARITHMETIC_PROGRESSION_DIFF))
@@ -22,6 +38,7 @@ def alice_ot1(b_0: PublicKey, b_1: PublicKey, msg0: bytes, msg1: bytes) -> (Ciph
 	ct_1 = Elgamal.encrypt(msg1, b_1)
 	return (ct_0, ct_1)
 
+# Bob uses the secret key it knows to decrypt the corresponding ciphertext.
 def bob_ot2(bit: bool, bob_sk: PrivateKey, alice_ct0: CipherText, alice_ct1: CipherText) -> bytes:
 	if bit:
 		return bytes(Elgamal.decrypt(alice_ct1, bob_sk))
@@ -31,12 +48,8 @@ def bob_ot2(bit: bool, bob_sk: PrivateKey, alice_ct0: CipherText, alice_ct1: Cip
 
 def test_elgamal():
 	pk, sk = Elgamal.newkeys(128)
-	print("pk: {}".format(pk))
-	print("sk: {}".format(sk))
-
 	msg = b"Hello"
 	ct = Elgamal.encrypt(msg, pk)
-	print("ct: {}".format(ct))
 	plaintext = Elgamal.decrypt(ct, sk)
 	if msg == plaintext:
 		print("Elgamal Correctness: PASSED")

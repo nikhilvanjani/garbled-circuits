@@ -1,12 +1,31 @@
+############################################################
+#### Description:
+# Our implementation of solving Millionaire's Problem using Garbled Circuits. 
+# This implmentation contains Bob's algorithms.
+# Follows Section 2.1 of https://github.com/0xPARC/0xparc-intro-book/releases/download/v1.1.1/easy.pdf .
+
+# File names indicate who they belong to.
+# Alice can only read files present in ./files/alice.
+# Bob can only read files present in ./files/bob.
+# When Alice writes files to ./files/alice, it indicates storing local state.
+# When Alice writes files to ./files/bob, it indicates sending that file to Bob.
+# When Bob writes files to ./files/bob, it indicates storing local state.
+# When Bob writes files to ./files/alice, it indicates send ingthat file to Alice.
+
+# Author: Nikhil Vanjani
+############################################################
+
 from garbled_gate import *
 from oblivious_transfer import bob_ot1, bob_ot2
-from alice_and_bob import *
+from alice_and_bob import evaluate_garbled_circuit, bit_decomposition
 
 import os
 import pickle
 
 
-
+# Generates Bob's 1st message of OT protocol consisting of public and private keys. 
+# Sends public keys to Alice.
+# Stores own input and private keys locally. 
 def generate_bob_ot1():
 	os.makedirs("./files/alice", exist_ok=True)
 	os.makedirs("./files/bob", exist_ok=True)
@@ -37,6 +56,8 @@ def generate_bob_ot1():
 	with open("./files/bob/bob_all_sk.pkl", "wb") as file:
 		pickle.dump(bob_all_sk, file)
 
+# Reads own input and private keys from local state and Alice's message of OT protocol, 
+# computes and stores the OT output consisting of Bob's keys for the garbled circuit.
 def generate_bob_ot2():
 	os.makedirs("./files/bob", exist_ok=True)
 
@@ -58,6 +79,8 @@ def generate_bob_ot2():
 	with open("./files/bob/bob_keys.pkl", "wb") as file:
 		pickle.dump(bob_keys, file)
 
+# Reads garbled circuit and alice's keys obtained from Alice, bob's keys from local state and 
+# evaluates garbled circuit to compute the output for function (x >= y).
 def generate_output():
 	with open("./files/bob/garbled_circuit.pkl", "rb") as file:
 		garbled_circuit = pickle.load(file)

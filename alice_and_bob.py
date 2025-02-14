@@ -1,19 +1,30 @@
+############################################################
+#### Description:
+# Our implementation of solving Millionaire's Problem using Garbled Circuits. 
+# This implmentation contains both Alice and Bob's algorithms for simplicity.
+# Follows Section 2.1 of https://github.com/0xPARC/0xparc-intro-book/releases/download/v1.1.1/easy.pdf .
+
+# Author: Nikhil Vanjani
+############################################################
+
 from garbled_gate import *
 from oblivious_transfer import bob_ot1, alice_ot1, bob_ot2
 import time
 
+# Helper function
 def init_wire_keys():
 	wire_keys_dict = {}
 	wire_keys_dict[0] = {}
 	wire_keys_dict[1] = {}
 	return wire_keys_dict
 
-def garbled_table_2bits():
-	# x is alice's inputs.
-	# y is bob's inputs.
-	# Suppose x = (x0, x1), y = (y0, y1).
-	# x >= y is equivalent to: 
-	# (x0 > y0) OR ((x0 = y0) AND (x1 >= y1))
+# Generates Garbled circuit for x >= y, where x and y are both of length 2 bits.
+# x is alice's inputs.
+# y is bob's inputs.
+# Suppose x = (x0, x1), y = (y0, y1).
+# x >= y is equivalent to: 
+# (x0 > y0) OR ((x0 = y0) AND (x1 >= y1))
+def garbled_circuit_2bits():
 	# We sample gate keys in reverse order as follows
 	# OR 
 	# 	x0 > y0
@@ -42,6 +53,7 @@ def garbled_table_2bits():
 	P_gt_right[0] = os.urandom(16)
 	P_gt_right[1] = os.urandom(16)
 	truth_table_gt = get_truth_table_gt(False, P_or_left[0], P_or_left[1])
+	# The output wire of this gate is the left input wire of OR gate.
 	garbled_gt = garble(P_gt_left[0], P_gt_left[1], P_gt_right[0], P_gt_right[1], P_or_left[0], P_or_left[1], truth_table_gt)
 
 	# AND gate
@@ -52,6 +64,7 @@ def garbled_table_2bits():
 	P_and_right[0] = os.urandom(16)
 	P_and_right[1] = os.urandom(16)
 	truth_table_and = get_truth_table_and(False, P_or_right[0], P_or_right[1])
+	# The output wire of this gate is the right input wire of OR gate.
 	garbled_and = garble(P_and_left[0], P_and_left[1], P_and_right[0], P_and_right[1], P_or_right[0], P_or_right[1], truth_table_and)
 
 	# x0 = y0
@@ -62,6 +75,7 @@ def garbled_table_2bits():
 	P_eq_right[0] = os.urandom(16)
 	P_eq_right[1] = os.urandom(16)
 	truth_table_eq = get_truth_table_eq(False, P_and_left[0], P_and_left[1])
+	# The output wire of this gate is the left input wire of AND gate.
 	garbled_eq = garble(P_eq_left[0], P_eq_left[1], P_eq_right[0], P_eq_right[1], P_and_left[0], P_and_left[1], truth_table_eq)
 
 	# x1 >= y1
@@ -72,48 +86,56 @@ def garbled_table_2bits():
 	P_geq_right[0] = os.urandom(16)
 	P_geq_right[1] = os.urandom(16)
 	truth_table_geq = get_truth_table_geq(False, P_and_right[0], P_and_right[1])
+	# The output wire of this gate is the right input wire of AND gate.
 	garbled_geq = garble(P_geq_left[0], P_geq_left[1], P_geq_right[0], P_geq_right[1], P_and_right[0], P_and_right[1], truth_table_geq)
 
 	garbled_circuit = (garbled_geq, garbled_eq, garbled_and, garbled_gt, garbled_or)
 
+	# keys for input x
 	x_keys = {}
-	y_keys = {}
+	# keys for bit x0
 	x_keys[0] = init_wire_keys()
-	y_keys[0] = init_wire_keys()
-	x_keys[1] = init_wire_keys()
-	y_keys[1] = init_wire_keys()
-
+	# x0 feeds as input to two gates: gt, eq
+	# inputs for gate: gt
 	x_keys[0][0][0] = P_gt_left[0]
 	x_keys[0][1][0] = P_gt_left[1]
-
+	# inputs for gate: eq
 	x_keys[0][0][1] = P_eq_left[0]
 	x_keys[0][1][1] = P_eq_left[1]
-
+	# keys for bit x1
+	x_keys[1] = init_wire_keys()
+	# x1 feeds as input to one gates: geq
 	x_keys[1][0][0] = P_geq_left[0]
 	x_keys[1][1][0] = P_geq_left[1]
 
+	# keys for input y
+	y_keys = {}
+	# keys for bit y0
+	y_keys[0] = init_wire_keys()
+	# y0 feeds as input to two gates: gt, eq
+	# inputs for gate: gt
 	y_keys[0][0][0] = P_gt_right[0]
 	y_keys[0][1][0] = P_gt_right[1]
-
+	# inputs for gate: eq
 	y_keys[0][0][1] = P_eq_right[0]
 	y_keys[0][1][1] = P_eq_right[1]
-
+	# keys for bit y1
+	y_keys[1] = init_wire_keys()
+	# x1 feeds as input to one gates: geq
 	y_keys[1][0][0] = P_geq_right[0]
 	y_keys[1][1][0] = P_geq_right[1]
 
 	return (garbled_circuit, x_keys, y_keys)
 
-def get_alice_keys(x_keys, bit_0, bit_1):
-	# print("get_alice_keys: x_keys: {}".format(x_keys))
+# Returns the keys corresponding to alice's input x
+def get_alice_keys(x_keys, bit_0, bit_1) -> dict:
 	alice_keys = {}
 	alice_keys[0] = x_keys[0][bit_0]
 	alice_keys[1] = x_keys[1][bit_1]
 	return alice_keys
 
-def get_bob_keys(y_keys, bit_0, bit_1):
-	# print("get_bob_keys: y_keys: {}".format(y_keys))
-	# print("get_bob_keys: bit_0: {}".format(bit_0))
-	# print("get_bob_keys: bit_1: {}".format(bit_1))
+# Returns the keys corresponding to bob's input y. This is done via OT.
+def get_bob_keys(y_keys, bit_0, bit_1) -> dict:
 	bits_bool = [True, True]
 	if bit_0 == 0:
 		bits_bool[0] = False
@@ -122,9 +144,10 @@ def get_bob_keys(y_keys, bit_0, bit_1):
 	bob_keys = {}
 	bob_keys[0] = {}
 	bob_keys[1] = {}
+	#  Get keys for all the input bits
 	for i in range(2):
 		yi_keys = y_keys[i]
-		# print("get_bob_keys: y{}_keys: {}".format(i, yi_keys))
+		#  For each input bit, get the keys for each time it feeds as input into a gate
 		for j in range(len(yi_keys[0])):
 			bob_ot1_st = time.time()
 			((b_0, b_1), bob_sk) = bob_ot1(bits_bool[i])
@@ -145,10 +168,11 @@ def get_bob_keys(y_keys, bit_0, bit_1):
 			print("bob_ot2_time: {}".format(bob_ot2_time))
 
 			bob_keys[i][j] = msg
-	# print("get_bob_keys: bob_keys: {}".format(bob_keys))
+
 	return bob_keys
 
-def evaluate_garbled_circuit(garbled_circuit, alice_keys, bob_keys):
+# Evaluate the garbled circuit sequentially from input layer to output layer.
+def evaluate_garbled_circuit(garbled_circuit, alice_keys, bob_keys) -> int:
 	(garbled_geq, garbled_eq, garbled_and, garbled_gt, garbled_or) = garbled_circuit
 
 	# evaluate x2 >= y2
@@ -161,8 +185,10 @@ def evaluate_garbled_circuit(garbled_circuit, alice_keys, bob_keys):
 	val_gt = evaluate(garbled_gt, alice_keys[0][0], bob_keys[0][0])
 	# evaluate OR gate
 	val_or = evaluate(garbled_or, val_gt, val_and)
+	# Return the integer value corresponding to the bytes object val_or
 	return int.from_bytes(val_or, byteorder='big')
 
+# helper function for bit bit_decomposition
 def bit_decomposition(val):
 	bit_string = format(val, '02b')
 	bit_list = [int(b) for b in bit_string]
@@ -171,7 +197,7 @@ def bit_decomposition(val):
 def test_garbled_circuits_full():
 	# Alice computes this and sends garbled_circuit to Bob
 	garble_st = time.time()
-	(garbled_circuit, x_keys, y_keys) = garbled_table_2bits()
+	(garbled_circuit, x_keys, y_keys) = garbled_circuit_2bits()
 	garble_et = time.time()
 	garble_time = garble_et - garble_st
 	print("Garbling time: {}".format(garble_time))
@@ -183,11 +209,7 @@ def test_garbled_circuits_full():
 	for alice_input in alice_inputs:
 		for bob_input in bob_inputs:
 			alice_bits = bit_decomposition(alice_input)
-			# print("alice_bits[0] = {}".format(alice_bits[0]))
-			# print("alice_bits[1] = {}".format(alice_bits[1]))
 			bob_bits = bit_decomposition(bob_input)
-			# print("bob_bits[0] = {}".format(bob_bits[0]))
-			# print("bob_bits[1] = {}".format(bob_bits[1]))
 
 			# Alice computes her keys and sends them to Bob
 			alice_keys_st = time.time()
@@ -195,7 +217,6 @@ def test_garbled_circuits_full():
 			alice_keys_et = time.time()
 			alice_keys_time = alice_keys_et - alice_keys_st
 			print("alice_keys time: {}".format(alice_keys_time))
-			# print("alice_keys: {}".format(alice_keys))
 	
 			# Bob engages with Alice in OT protocol to obtain his keys
 			bob_keys_st = time.time()
@@ -203,7 +224,6 @@ def test_garbled_circuits_full():
 			bob_keys_et = time.time()
 			bob_keys_time = bob_keys_et - bob_keys_st
 			print("bob_keys time: {}".format(bob_keys_time))
-			# print("bob_keys: {}".format(bob_keys))
 
 			# Bob evaluate the garbled circuit
 			evaluate_st = time.time()
@@ -211,7 +231,6 @@ def test_garbled_circuits_full():
 			evaluate_et = time.time()
 			evaluate_time = evaluate_et - evaluate_st
 			print("Evaluate Garbled Circuit time: {}".format(evaluate_time))
-			# print("output: {}".format(output))
 
 			output_bool = True
 			if output == 0:
@@ -227,7 +246,7 @@ def test_garbled_circuits_full():
 def test_garbled_circuits_once():
 	# Alice computes this and sends garbled_circuit to Bob
 	garble_st = time.time()
-	(garbled_circuit, x_keys, y_keys) = garbled_table_2bits()
+	(garbled_circuit, x_keys, y_keys) = garbled_circuit_2bits()
 	garble_et = time.time()
 	garble_time = garble_et - garble_st
 	print("Garbling time: {}".format(garble_time))
@@ -235,11 +254,7 @@ def test_garbled_circuits_once():
 	alice_input = 1
 	bob_input = 2
 	alice_bits = bit_decomposition(alice_input)
-	# print("alice_bits[0] = {}".format(alice_bits[0]))
-	# print("alice_bits[1] = {}".format(alice_bits[1]))
 	bob_bits = bit_decomposition(bob_input)
-	# print("bob_bits[0] = {}".format(bob_bits[0]))
-	# print("bob_bits[1] = {}".format(bob_bits[1]))
 
 	# Alice computes her keys and sends them to Bob
 	alice_keys_st = time.time()
@@ -247,7 +262,6 @@ def test_garbled_circuits_once():
 	alice_keys_et = time.time()
 	alice_keys_time = alice_keys_et - alice_keys_st
 	print("alice_keys time: {}".format(alice_keys_time))
-	# print("alice_keys: {}".format(alice_keys))
 
 	# Bob engages with Alice in OT protocol to obtain his keys
 	bob_keys_st = time.time()
@@ -255,7 +269,6 @@ def test_garbled_circuits_once():
 	bob_keys_et = time.time()
 	bob_keys_time = bob_keys_et - bob_keys_st
 	print("bob_keys time: {}".format(bob_keys_time))
-	# print("bob_keys: {}".format(bob_keys))
 
 	# Bob evaluate the garbled circuit
 	evaluate_st = time.time()
@@ -263,7 +276,6 @@ def test_garbled_circuits_once():
 	evaluate_et = time.time()
 	evaluate_time = evaluate_et - evaluate_st
 	print("Evaluate Garbled Circuit time: {}".format(evaluate_time))
-	# print("output: {}".format(output))
 
 	output_bool = True
 	if output == 0:
